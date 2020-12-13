@@ -11,9 +11,18 @@ data class SqlSchema(val columns: List<SqlColumn>) {
     constructor(vararg columns: SqlColumn) : this(listOf(*columns))
     constructor(vararg columns: Pair<String, SqlType>) : this(columns.map { SqlColumn(it.first, it.second) })
 
+    init {
+        val duplicateNames = columns.groupBy { it.name }.filter { it.value.size > 1 }.keys
+        if (duplicateNames.isNotEmpty()) {
+            throw IllegalArgumentException(
+                "Columns cannot share the same name within the same schema. [duplicates=$duplicateNames]"
+            )
+        }
+    }
+
     val size: Int = columns.size
-    val type = SqlStruct(columns.associate { it.name to it.type })
     fun indexOf(name: String) = columns.indexOfFirst { it.name == name }
+    operator fun get(name: String) = this[indexOf(name)]
     operator fun get(column: Int) = columns[column]
 }
 
@@ -25,7 +34,9 @@ data class SqlSchema(val columns: List<SqlColumn>) {
  * @author Ian Caffey
  * @since 1.0
  */
-data class SqlTable(val name: String, val schema: SqlSchema)
+data class SqlTable(val name: String, val schema: SqlSchema) {
+    val type = SqlStructType(name, schema.columns.map { it.name to it.type }.toMap())
+}
 
 /**
  * A column within a [SqlTable].
