@@ -67,8 +67,8 @@ sealed class SqlRecursiveType : SqlType() {
     @Suppress("SENSELESS_COMPARISON")
     protected fun referencedIn(enclosingType: SqlType): Boolean = when (enclosingType) {
         this -> true
-        is SqlTupleType -> enclosingType.elements.any { cyclesIn(it) }
         is SqlArrayType<*> -> referencedIn(enclosingType.elementType)
+        is SqlTupleType -> enclosingType.elements.any { referencedIn(it) }
         is SqlMapType -> referencedIn(enclosingType.keyType) || referencedIn(enclosingType.valueType)
         //Note: nested references to the enclosing types will not have their fields initialized yet, so these null
         //checks are mandatory to ignore these cases (as they will be caught when checking for cycles from the parent)
