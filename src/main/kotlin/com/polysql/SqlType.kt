@@ -224,6 +224,14 @@ data class SqlArrayType<T : SqlType>(val elementType: T) : SqlType() {
     override fun toString() = super.toString()
 }
 
+val SqlBooleanArrayType = SqlArrayType(SqlBooleanType)
+val SqlTinyIntArrayType = SqlArrayType(SqlTinyIntType)
+val SqlSmallIntArrayType = SqlArrayType(SqlSmallIntType)
+val SqlIntArrayType = SqlArrayType(SqlIntType)
+val SqlBigIntArrayType = SqlArrayType(SqlBigIntType)
+val SqlFloatArrayType = SqlArrayType(SqlFloatType)
+val SqlDoubleArrayType = SqlArrayType(SqlDoubleType)
+
 /**
  * A [SqlType] capable of storing a values from an enumeration of [SqlType].
  *
