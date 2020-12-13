@@ -1,6 +1,16 @@
 package com.polysql
 
 /**
+ * A column within a [SqlTable].
+ *
+ * @param name the unique name of the column
+ * @param type the type of data contained by the column
+ * @author Ian Caffey
+ * @since 1.0
+ */
+data class SqlColumn(val name: String, val type: SqlType)
+
+/**
  * A representation of a row of data with name-accessible columns.
  *
  * @param columns the columns of data within the schema
@@ -37,13 +47,3 @@ data class SqlSchema(val columns: List<SqlColumn>) {
 data class SqlTable(val name: String, val schema: SqlSchema) {
     val type = SqlStructType(name, schema.columns.map { it.name to it.type }.toMap())
 }
-
-/**
- * A column within a [SqlTable].
- *
- * @param name the unique name of the column
- * @param type the type of data contained by the column
- * @author Ian Caffey
- * @since 1.0
- */
-data class SqlColumn(val name: String, val type: SqlType)
