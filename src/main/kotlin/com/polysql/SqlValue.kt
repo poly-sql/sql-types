@@ -550,9 +550,10 @@ data class SqlTuple(private val values: List<SqlValue>) : SqlValue, List<SqlValu
  * @author Ian Caffey
  * @since 1.0
  */
-data class SqlMap<K : SqlScalar, V : SqlValue>(private val map: Map<K, V>) : SqlValue, Map<K, V> by map {
-    constructor(vararg values: Pair<K, V>) : this(values.toMap())
+data class SqlMap(private val map: Map<SqlScalar, SqlValue>) : SqlValue, Map<SqlScalar, SqlValue> by map {
+    constructor(vararg values: Pair<SqlScalar, SqlValue>) : this(values.toMap())
 
+    override fun get(key: SqlScalar) = map[key] ?: SqlNull
     override fun instanceOf(type: SqlType): Boolean =
         (type is SqlMapType && map.keys.all { it.instanceOf(type.keyType) }
                 && map.values.all { it.instanceOf(type.valueType) })
@@ -568,8 +569,8 @@ data class SqlMap<K : SqlScalar, V : SqlValue>(private val map: Map<K, V>) : Sql
 data class SqlStruct(private val fields: Map<String, SqlValue>) : SqlValue, Map<String, SqlValue> by fields {
     constructor(vararg values: Pair<String, SqlValue>) : this(values.toMap())
 
+    override fun get(key: String) = fields[key] ?: SqlNull
     override fun instanceOf(type: SqlType): Boolean =
-        (type is SqlStructType && type.fields.all { (name, type) ->
-            (fields[name] ?: SqlNull).instanceOf(type)
-        }) || (type is SqlUnionType && type.types.any { instanceOf(it) })
+        (type is SqlStructType && type.fields.all { (name, type) -> this[name].instanceOf(type) })
+                || (type is SqlUnionType && type.types.any { instanceOf(it) })
 }
