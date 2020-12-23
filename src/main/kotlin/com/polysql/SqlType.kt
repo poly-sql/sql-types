@@ -14,6 +14,7 @@ import java.util.*
  */
 sealed class SqlType {
     abstract val name: String
+    abstract val default: SqlValue
     infix fun or(other: SqlType): SqlUnionType = SqlUnionType(this, other)
     override fun toString() = name
 }
@@ -84,7 +85,9 @@ sealed class SqlRecursiveType : SqlType() {
  * @author Ian Caffey
  * @since 1.0
  */
-object SqlNullType : SqlScalarType("Null")
+object SqlNullType : SqlScalarType("Null") {
+    override val default = SqlNull
+}
 
 /**
  * A [SqlType] capable of storing two possible values; `true` or `false`.
@@ -92,7 +95,9 @@ object SqlNullType : SqlScalarType("Null")
  * @author Ian Caffey
  * @since 1.0
  */
-object SqlBooleanType : SqlScalarType("Boolean")
+object SqlBooleanType : SqlScalarType("Boolean") {
+    override val default = SqlBoolean.FALSE
+}
 
 /**
  * A [SqlType] capable of storing a 8-bit signed integer with a minimum value of `-2^7` and maximum value of `2^7-1`.
@@ -100,7 +105,9 @@ object SqlBooleanType : SqlScalarType("Boolean")
  * @author Ian Caffey
  * @since 1.0
  */
-object SqlTinyIntType : SqlNumberType("TinyInt")
+object SqlTinyIntType : SqlNumberType("TinyInt") {
+    override val default = SqlTinyInt.ZERO
+}
 
 /**
  * A [SqlType] capable of storing a 16-bit signed integer with a minimum value of `-2^15` and maximum value of `2^15-1`.
@@ -108,7 +115,9 @@ object SqlTinyIntType : SqlNumberType("TinyInt")
  * @author Ian Caffey
  * @since 1.0
  */
-object SqlSmallIntType : SqlNumberType("SmallInt")
+object SqlSmallIntType : SqlNumberType("SmallInt") {
+    override val default = SqlSmallInt.ZERO
+}
 
 /**
  * A [SqlType] capable of storing a 32-bit signed integer with a minimum value of `-2^31` and maximum value of `2^31-1`.
@@ -116,7 +125,9 @@ object SqlSmallIntType : SqlNumberType("SmallInt")
  * @author Ian Caffey
  * @since 1.0
  */
-object SqlIntType : SqlNumberType("Int")
+object SqlIntType : SqlNumberType("Int") {
+    override val default = SqlInt.ZERO
+}
 
 /**
  * A [SqlType] capable of storing a 64-bit signed integer with a minimum value of `-2^63` and maximum value of `2^63-1`.
@@ -124,7 +135,9 @@ object SqlIntType : SqlNumberType("Int")
  * @author Ian Caffey
  * @since 1.0
  */
-object SqlBigIntType : SqlNumberType("BigInt")
+object SqlBigIntType : SqlNumberType("BigInt") {
+    override val default = SqlBigInt.ZERO
+}
 
 /**
  * A [SqlType] capable of storing a 32-bit single-precision floating-point number.
@@ -132,7 +145,9 @@ object SqlBigIntType : SqlNumberType("BigInt")
  * @author Ian Caffey
  * @since 1.0
  */
-object SqlFloatType : SqlNumberType("Float")
+object SqlFloatType : SqlNumberType("Float") {
+    override val default = SqlFloat.ZERO
+}
 
 /**
  * A [SqlType] capable of storing a 64-bit double-precision floating-point number.
@@ -140,7 +155,9 @@ object SqlFloatType : SqlNumberType("Float")
  * @author Ian Caffey
  * @since 1.0
  */
-object SqlDoubleType : SqlNumberType("Double")
+object SqlDoubleType : SqlNumberType("Double") {
+    override val default = SqlDouble.ZERO
+}
 
 /**
  * A [SqlType] capable of storing a fixed precision decimal number.
@@ -158,6 +175,7 @@ data class SqlDecimalType(val precision: Int, val scale: Int) : SqlNumberType("D
     }
 
     val mathContext = MathContext(precision, RoundingMode.HALF_UP)
+    override val default = SqlDecimal.ZERO
     override fun toString() = name
 }
 
@@ -167,7 +185,9 @@ data class SqlDecimalType(val precision: Int, val scale: Int) : SqlNumberType("D
  * @author Ian Caffey
  * @since 1.0
  */
-object SqlDateType : SqlScalarType("Date")
+object SqlDateType : SqlScalarType("Date") {
+    override val default = SqlDate.EPOCH
+}
 
 /**
  * A [SqlType] capable of storing an instant in time (with nanosecond precision).
@@ -175,7 +195,9 @@ object SqlDateType : SqlScalarType("Date")
  * @author Ian Caffey
  * @since 1.0
  */
-object SqlTimestampType : SqlScalarType("Timestamp")
+object SqlTimestampType : SqlScalarType("Timestamp") {
+    override val default = SqlTimestamp.EPOCH
+}
 
 /**
  * A [SqlType] capable of storing fixed-length sequence of characters with a minimum length of `1` character and a maximum length of `255` characters.
@@ -188,6 +210,7 @@ data class SqlCharType(val length: Int) : SqlScalarType("Char($length)") {
         require(length in 1..255) { "'$name' length must be between 1 and 255. [length=$length]" }
     }
 
+    override val default = SqlChar.EMPTY
     override fun toString() = super.toString()
 }
 
@@ -202,6 +225,7 @@ data class SqlVarcharType(val length: Int) : SqlScalarType("Varchar($length)") {
         require(length in 1..65_535) { "'$name' length must be between 1 and 65,535. [length=$length]" }
     }
 
+    override val default = SqlVarchar.EMPTY
     override fun toString() = super.toString()
 }
 
@@ -211,7 +235,9 @@ data class SqlVarcharType(val length: Int) : SqlScalarType("Varchar($length)") {
  * @author Ian Caffey
  * @since 1.0
  */
-object SqlStringType : SqlScalarType("String")
+object SqlStringType : SqlScalarType("String") {
+    override val default = SqlString.EMPTY
+}
 
 /**
  * A [SqlType] capable of storing a variable-length, ordered sequence of values from another [SqlType].
@@ -221,16 +247,27 @@ object SqlStringType : SqlScalarType("String")
  */
 data class SqlArrayType<T : SqlType>(val elementType: T) : SqlType() {
     override val name = "${elementType.name}[]"
+    override val default: SqlValue = when (elementType) {
+        is SqlBooleanType -> SqlBooleanArray.EMPTY
+        is SqlTinyIntType -> SqlTinyIntArray.EMPTY
+        is SqlSmallIntType -> SqlSmallIntArray.EMPTY
+        is SqlIntType -> SqlIntArray.EMPTY
+        is SqlBigIntType -> SqlBigIntArray.EMPTY
+        is SqlFloatType -> SqlFloatArray.EMPTY
+        is SqlDoubleType -> SqlDoubleArray.EMPTY
+        else -> SqlArray.EMPTY
+    }
+
     override fun toString() = super.toString()
 }
 
-val SqlBooleanArrayType = SqlArrayType(SqlBooleanType)
-val SqlTinyIntArrayType = SqlArrayType(SqlTinyIntType)
-val SqlSmallIntArrayType = SqlArrayType(SqlSmallIntType)
-val SqlIntArrayType = SqlArrayType(SqlIntType)
 val SqlBigIntArrayType = SqlArrayType(SqlBigIntType)
-val SqlFloatArrayType = SqlArrayType(SqlFloatType)
+val SqlBooleanArrayType = SqlArrayType(SqlBooleanType)
 val SqlDoubleArrayType = SqlArrayType(SqlDoubleType)
+val SqlFloatArrayType = SqlArrayType(SqlFloatType)
+val SqlIntArrayType = SqlArrayType(SqlIntType)
+val SqlSmallIntArrayType = SqlArrayType(SqlSmallIntType)
+val SqlTinyIntArrayType = SqlArrayType(SqlTinyIntType)
 
 /**
  * A [SqlType] capable of storing a values from an enumeration of [SqlType].
@@ -242,6 +279,8 @@ data class SqlTupleType(val elements: List<SqlType>) : SqlType() {
     constructor(vararg types: SqlType) : this(listOf(*types))
 
     override val name = elements.joinToString(separator = ",", prefix = "(", postfix = ")") { it.name }
+    override val default = SqlTuple.EMPTY
+
     override fun toString() = super.toString()
 }
 
@@ -253,6 +292,7 @@ data class SqlTupleType(val elements: List<SqlType>) : SqlType() {
  */
 data class SqlMapType(val keyType: SqlScalarType, val valueType: SqlType) : SqlType() {
     override val name = "${keyType.name}=>${valueType.name}"
+    override val default = SqlMap.EMPTY
     override fun toString() = super.toString()
 }
 
@@ -299,6 +339,7 @@ class SqlStructType private constructor(
         }
     }
 
+    override val default = SqlStruct.EMPTY
     override fun hashCode() = name.hashCode()
     override fun equals(other: Any?) =
         this === other || (other is SqlStructType && if (cyclic) name == other.name else fields == other.fields)
@@ -347,6 +388,7 @@ class SqlUnionType private constructor(
         }
     }
 
+    override val default = if (SqlNull.instanceOf(this)) SqlNull else this.types.first().default
     override fun hashCode() = name.hashCode()
     override fun equals(other: Any?) =
         this === other || (other is SqlUnionType && if (cyclic) name == other.name else types == other.types)
