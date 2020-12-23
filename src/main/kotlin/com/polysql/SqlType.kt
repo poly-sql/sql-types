@@ -386,6 +386,9 @@ class SqlUnionType private constructor(
             if (cyclesIn(it))
                 throw IllegalStateException("Invalid cycle detected in $it for $this.")
         }
+        require(this.types.size > 1) {
+            "Unions must have at least 2 variants. [types=${this.types}]"
+        }
     }
 
     override val default = if (SqlNull.instanceOf(this)) SqlNull else this.types.first().default
