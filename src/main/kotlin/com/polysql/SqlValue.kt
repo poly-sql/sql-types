@@ -1,8 +1,6 @@
 package com.polysql
 
 import java.math.BigDecimal
-import java.sql.Date
-import java.sql.Timestamp
 
 /**
  * A value supported by [poly-sql](https://github.com/poly-sql).
@@ -33,15 +31,16 @@ interface SqlSingular : SqlValue {
 }
 
 /**
- * A `null` value [poly-sql](https://github.com/poly-sql).
+ * A `null` value in [poly-sql](https://github.com/poly-sql).
  *
  * @author Ian Caffey
  * @since 1.0
  */
-object SqlNull : SqlSingular {
+object SqlNull : SqlSingular, Comparable<SqlNull> {
     override val type: SqlType
         get() = SqlNullType
 
+    override fun compareTo(other: SqlNull) = 0
     override fun toString() = "null"
 }
 
@@ -106,6 +105,10 @@ interface SqlNumber : SqlScalar {
 enum class SqlBoolean(val value: Boolean) : SqlScalar, SqlSingular {
     TRUE(true), FALSE(false);
 
+    companion object {
+        operator fun invoke(value: Boolean) = if (value) TRUE else FALSE
+    }
+
     override val type: SqlType
         get() = SqlBooleanType
 
@@ -113,10 +116,7 @@ enum class SqlBoolean(val value: Boolean) : SqlScalar, SqlSingular {
     infix fun or(other: SqlBoolean) = Companion(value or other.value)
     infix fun xor(other: SqlBoolean) = Companion(value xor other.value)
     operator fun not(): SqlBoolean = Companion(!value)
-
-    companion object {
-        operator fun invoke(value: Boolean) = if (value) TRUE else FALSE
-    }
+    override fun toString() = value.toString()
 }
 
 /**
@@ -126,6 +126,10 @@ enum class SqlBoolean(val value: Boolean) : SqlScalar, SqlSingular {
  * @since 1.0
  */
 inline class SqlTinyInt(val value: Byte) : SqlNumber, SqlSingular, Comparable<SqlTinyInt> {
+    companion object {
+        val ZERO = SqlTinyInt(0)
+    }
+
     override val type: SqlType
         get() = SqlTinyIntType
 
@@ -137,6 +141,7 @@ inline class SqlTinyInt(val value: Byte) : SqlNumber, SqlSingular, Comparable<Sq
     override fun toDouble() = SqlDouble(value.toDouble())
     override fun toDecimal() = SqlDecimal(BigDecimal.valueOf(value.toLong()))
     override fun compareTo(other: SqlTinyInt) = value.compareTo(other.value)
+    override fun toString() = value.toString()
 }
 
 /**
@@ -146,6 +151,10 @@ inline class SqlTinyInt(val value: Byte) : SqlNumber, SqlSingular, Comparable<Sq
  * @since 1.0
  */
 inline class SqlSmallInt(val value: Short) : SqlNumber, SqlSingular, Comparable<SqlSmallInt> {
+    companion object {
+        val ZERO = SqlSmallInt(0)
+    }
+
     override val type: SqlType
         get() = SqlSmallIntType
 
@@ -157,6 +166,7 @@ inline class SqlSmallInt(val value: Short) : SqlNumber, SqlSingular, Comparable<
     override fun toDouble() = SqlDouble(value.toDouble())
     override fun toDecimal() = SqlDecimal(BigDecimal.valueOf(value.toLong()))
     override fun compareTo(other: SqlSmallInt) = value.compareTo(other.value)
+    override fun toString() = value.toString()
 }
 
 /**
@@ -166,6 +176,10 @@ inline class SqlSmallInt(val value: Short) : SqlNumber, SqlSingular, Comparable<
  * @since 1.0
  */
 inline class SqlInt(val value: Int) : SqlNumber, SqlSingular, Comparable<SqlInt> {
+    companion object {
+        val ZERO = SqlInt(0)
+    }
+
     override val type: SqlType
         get() = SqlIntType
 
@@ -177,6 +191,7 @@ inline class SqlInt(val value: Int) : SqlNumber, SqlSingular, Comparable<SqlInt>
     override fun toDouble() = SqlDouble(value.toDouble())
     override fun toDecimal() = SqlDecimal(BigDecimal.valueOf(value.toLong()))
     override fun compareTo(other: SqlInt) = value.compareTo(other.value)
+    override fun toString() = value.toString()
 }
 
 /**
@@ -186,6 +201,10 @@ inline class SqlInt(val value: Int) : SqlNumber, SqlSingular, Comparable<SqlInt>
  * @since 1.0
  */
 inline class SqlBigInt(val value: Long) : SqlNumber, SqlSingular, Comparable<SqlBigInt> {
+    companion object {
+        val ZERO = SqlBigInt(0)
+    }
+
     override val type: SqlType
         get() = SqlBigIntType
 
@@ -197,6 +216,7 @@ inline class SqlBigInt(val value: Long) : SqlNumber, SqlSingular, Comparable<Sql
     override fun toDouble() = SqlDouble(value.toDouble())
     override fun toDecimal() = SqlDecimal(BigDecimal.valueOf(value))
     override fun compareTo(other: SqlBigInt) = value.compareTo(other.value)
+    override fun toString() = value.toString()
 }
 
 /**
@@ -206,6 +226,10 @@ inline class SqlBigInt(val value: Long) : SqlNumber, SqlSingular, Comparable<Sql
  * @since 1.0
  */
 inline class SqlFloat(val value: Float) : SqlNumber, SqlSingular, Comparable<SqlFloat> {
+    companion object {
+        val ZERO = SqlFloat(0f)
+    }
+
     override val type: SqlType
         get() = SqlFloatType
 
@@ -217,6 +241,7 @@ inline class SqlFloat(val value: Float) : SqlNumber, SqlSingular, Comparable<Sql
     override fun toDouble() = SqlDouble(value.toDouble())
     override fun toDecimal() = SqlDecimal(BigDecimal.valueOf(value.toLong()))
     override fun compareTo(other: SqlFloat) = value.compareTo(other.value)
+    override fun toString() = value.toString()
 }
 
 /**
@@ -226,6 +251,10 @@ inline class SqlFloat(val value: Float) : SqlNumber, SqlSingular, Comparable<Sql
  * @since 1.0
  */
 inline class SqlDouble(val value: Double) : SqlNumber, SqlSingular, Comparable<SqlDouble> {
+    companion object {
+        val ZERO = SqlDouble(0.0)
+    }
+
     override val type: SqlType
         get() = SqlDoubleType
 
@@ -237,6 +266,7 @@ inline class SqlDouble(val value: Double) : SqlNumber, SqlSingular, Comparable<S
     override fun toDouble() = this
     override fun toDecimal() = SqlDecimal(BigDecimal.valueOf(value.toLong()))
     override fun compareTo(other: SqlDouble) = value.compareTo(other.value)
+    override fun toString() = value.toString()
 }
 
 /**
@@ -246,6 +276,10 @@ inline class SqlDouble(val value: Double) : SqlNumber, SqlSingular, Comparable<S
  * @since 1.0
  */
 inline class SqlDecimal(val value: BigDecimal) : SqlNumber, Comparable<SqlDecimal> {
+    companion object {
+        val ZERO = SqlDecimal(BigDecimal.ZERO)
+    }
+
     override fun toTinyInt() = SqlTinyInt(value.toByte())
     override fun toSmallInt() = SqlSmallInt(value.toShort())
     override fun toInt() = SqlInt(value.toInt())
@@ -257,6 +291,8 @@ inline class SqlDecimal(val value: BigDecimal) : SqlNumber, Comparable<SqlDecima
     override fun instanceOf(type: SqlType): Boolean =
         (type is SqlDecimalType && value.precision() <= type.precision && value.scale() <= type.scale)
                 || (type is SqlUnionType && type.types.any { instanceOf(it) })
+
+    override fun toString() = value.toString()
 }
 
 /**
@@ -265,11 +301,16 @@ inline class SqlDecimal(val value: BigDecimal) : SqlNumber, Comparable<SqlDecima
  * @author Ian Caffey
  * @since 1.0
  */
-inline class SqlDate(val value: Date) : SqlScalar, SqlSingular, Comparable<SqlDate> {
+inline class SqlDate(val value: Long) : SqlScalar, SqlSingular, Comparable<SqlDate> {
+    companion object {
+        val EPOCH = SqlDate(0)
+    }
+
     override val type: SqlType
         get() = SqlDateType
 
     override fun compareTo(other: SqlDate) = value.compareTo(other.value)
+    override fun toString() = value.toString()
 }
 
 /**
@@ -278,11 +319,16 @@ inline class SqlDate(val value: Date) : SqlScalar, SqlSingular, Comparable<SqlDa
  * @author Ian Caffey
  * @since 1.0
  */
-inline class SqlTimestamp(val value: Timestamp) : SqlScalar, SqlSingular, Comparable<SqlTimestamp> {
+inline class SqlTimestamp(val value: Long) : SqlScalar, SqlSingular, Comparable<SqlTimestamp> {
+    companion object {
+        val EPOCH = SqlTimestamp(0)
+    }
+
     override val type: SqlType
         get() = SqlTimestampType
 
     override fun compareTo(other: SqlTimestamp) = value.compareTo(other.value)
+    override fun toString() = value.toString()
 }
 
 /**
@@ -292,6 +338,10 @@ inline class SqlTimestamp(val value: Timestamp) : SqlScalar, SqlSingular, Compar
  * @since 1.0
  */
 data class SqlChar(val value: String) : SqlScalar, CharSequence, Comparable<SqlChar> {
+    companion object {
+        val EMPTY = SqlChar("")
+    }
+
     override val length: Int
         get() = value.length
 
@@ -311,6 +361,10 @@ data class SqlChar(val value: String) : SqlScalar, CharSequence, Comparable<SqlC
  * @since 1.0
  */
 data class SqlVarchar(val value: String) : SqlScalar, CharSequence, Comparable<SqlVarchar> {
+    companion object {
+        val EMPTY = SqlVarchar("")
+    }
+
     override val length: Int
         get() = value.length
 
@@ -330,6 +384,10 @@ data class SqlVarchar(val value: String) : SqlScalar, CharSequence, Comparable<S
  * @since 1.0
  */
 data class SqlString(val value: String) : SqlScalar, SqlSingular, CharSequence, Comparable<SqlString> {
+    companion object {
+        val EMPTY = SqlString("")
+    }
+
     override val length: Int
         get() = value.length
     override val type: SqlType
@@ -347,12 +405,18 @@ data class SqlString(val value: String) : SqlScalar, SqlSingular, CharSequence, 
  * @author Ian Caffey
  * @since 1.0
  */
-data class SqlArray<V : SqlValue>(private val values: List<V>) : SqlValue, List<V> by values {
+data class SqlArray<out V : SqlValue>(private val values: List<V>) : SqlValue, List<V> by values {
     constructor(vararg values: V) : this(values.toList())
+
+    companion object {
+        val EMPTY = SqlArray<Nothing>()
+    }
 
     override fun instanceOf(type: SqlType): Boolean =
         (type is SqlArrayType<*> && values.all { it.instanceOf(type.elementType) })
                 || (type is SqlUnionType && type.types.any { instanceOf(it) })
+
+    override fun toString() = values.toString()
 }
 
 /**
@@ -363,6 +427,10 @@ data class SqlArray<V : SqlValue>(private val values: List<V>) : SqlValue, List<
  */
 data class SqlBooleanArray(private val values: BooleanArray) : SqlSingular, Iterable<SqlBoolean> {
     constructor(size: Int, init: (Int) -> SqlBoolean) : this(BooleanArray(size) { init(it).value })
+
+    companion object {
+        val EMPTY = SqlBooleanArray(BooleanArray(0))
+    }
 
     val size: Int
         get() = values.size
@@ -379,6 +447,7 @@ data class SqlBooleanArray(private val values: BooleanArray) : SqlSingular, Iter
         this === other || (other is SqlBooleanArray && values.contentEquals(other.values))
 
     override fun hashCode() = values.contentHashCode()
+    override fun toString() = values.contentToString()
 }
 
 /**
@@ -389,6 +458,10 @@ data class SqlBooleanArray(private val values: BooleanArray) : SqlSingular, Iter
  */
 data class SqlTinyIntArray(private val values: ByteArray) : SqlSingular, Iterable<SqlTinyInt> {
     constructor(size: Int, init: (Int) -> SqlTinyInt) : this(ByteArray(size) { init(it).value })
+
+    companion object {
+        val EMPTY = SqlTinyIntArray(ByteArray(0))
+    }
 
     val size: Int
         get() = values.size
@@ -405,6 +478,7 @@ data class SqlTinyIntArray(private val values: ByteArray) : SqlSingular, Iterabl
         this === other || (other is SqlTinyIntArray && values.contentEquals(other.values))
 
     override fun hashCode() = values.contentHashCode()
+    override fun toString() = values.contentToString()
 }
 
 /**
@@ -415,6 +489,10 @@ data class SqlTinyIntArray(private val values: ByteArray) : SqlSingular, Iterabl
  */
 data class SqlSmallIntArray(private val values: ShortArray) : SqlSingular, Iterable<SqlSmallInt> {
     constructor(size: Int, init: (Int) -> SqlSmallInt) : this(ShortArray(size) { init(it).value })
+
+    companion object {
+        val EMPTY = SqlSmallIntArray(ShortArray(0))
+    }
 
     val size: Int
         get() = values.size
@@ -431,6 +509,7 @@ data class SqlSmallIntArray(private val values: ShortArray) : SqlSingular, Itera
         this === other || (other is SqlSmallIntArray && values.contentEquals(other.values))
 
     override fun hashCode() = values.contentHashCode()
+    override fun toString() = values.contentToString()
 }
 
 /**
@@ -441,6 +520,10 @@ data class SqlSmallIntArray(private val values: ShortArray) : SqlSingular, Itera
  */
 data class SqlIntArray(private val values: IntArray) : SqlSingular, Iterable<SqlInt> {
     constructor(size: Int, init: (Int) -> SqlInt) : this(IntArray(size) { init(it).value })
+
+    companion object {
+        val EMPTY = SqlIntArray(IntArray(0))
+    }
 
     val size: Int
         get() = values.size
@@ -455,6 +538,7 @@ data class SqlIntArray(private val values: IntArray) : SqlSingular, Iterable<Sql
     override fun iterator() = values.asSequence().map { SqlInt(it) }.iterator()
     override fun equals(other: Any?) = this === other || (other is SqlIntArray && values.contentEquals(other.values))
     override fun hashCode() = values.contentHashCode()
+    override fun toString() = values.contentToString()
 }
 
 /**
@@ -465,6 +549,10 @@ data class SqlIntArray(private val values: IntArray) : SqlSingular, Iterable<Sql
  */
 data class SqlBigIntArray(private val values: LongArray) : SqlSingular, Iterable<SqlBigInt> {
     constructor(size: Int, init: (Int) -> SqlBigInt) : this(LongArray(size) { init(it).value })
+
+    companion object {
+        val EMPTY = SqlBigIntArray(LongArray(0))
+    }
 
     val size: Int
         get() = values.size
@@ -479,6 +567,7 @@ data class SqlBigIntArray(private val values: LongArray) : SqlSingular, Iterable
     override fun iterator() = values.asSequence().map { SqlBigInt(it) }.iterator()
     override fun equals(other: Any?) = this === other || (other is SqlBigIntArray && values.contentEquals(other.values))
     override fun hashCode() = values.contentHashCode()
+    override fun toString() = values.contentToString()
 }
 
 /**
@@ -489,6 +578,10 @@ data class SqlBigIntArray(private val values: LongArray) : SqlSingular, Iterable
  */
 data class SqlFloatArray(private val values: FloatArray) : SqlSingular, Iterable<SqlFloat> {
     constructor(size: Int, init: (Int) -> SqlFloat) : this(FloatArray(size) { init(it).value })
+
+    companion object {
+        val EMPTY = SqlFloatArray(FloatArray(0))
+    }
 
     val size: Int
         get() = values.size
@@ -503,6 +596,7 @@ data class SqlFloatArray(private val values: FloatArray) : SqlSingular, Iterable
     override fun iterator() = values.asSequence().map { SqlFloat(it) }.iterator()
     override fun equals(other: Any?) = this === other || (other is SqlFloatArray && values.contentEquals(other.values))
     override fun hashCode() = values.contentHashCode()
+    override fun toString() = values.contentToString()
 }
 
 /**
@@ -513,6 +607,10 @@ data class SqlFloatArray(private val values: FloatArray) : SqlSingular, Iterable
  */
 data class SqlDoubleArray(private val values: DoubleArray) : SqlSingular, Iterable<SqlDouble> {
     constructor(size: Int, init: (Int) -> SqlDouble) : this(DoubleArray(size) { init(it).value })
+
+    companion object {
+        val EMPTY = SqlDoubleArray(DoubleArray(0))
+    }
 
     val size: Int
         get() = values.size
@@ -527,6 +625,7 @@ data class SqlDoubleArray(private val values: DoubleArray) : SqlSingular, Iterab
     override fun iterator() = values.asSequence().map { SqlDouble(it) }.iterator()
     override fun equals(other: Any?) = this === other || (other is SqlDoubleArray && values.contentEquals(other.values))
     override fun hashCode() = values.contentHashCode()
+    override fun toString() = values.contentToString()
 }
 
 /**
@@ -538,10 +637,16 @@ data class SqlDoubleArray(private val values: DoubleArray) : SqlSingular, Iterab
 data class SqlTuple(private val values: List<SqlValue>) : SqlValue, List<SqlValue> by values {
     constructor(vararg values: SqlValue) : this(values.toList())
 
+    companion object {
+        val EMPTY = SqlTuple()
+    }
+
     override fun instanceOf(type: SqlType): Boolean =
         (type is SqlTupleType && type.elements.size == values.size
                 && values.indices.all { values[it].instanceOf(type.elements[it]) })
                 || (type is SqlUnionType && type.types.any { instanceOf(it) })
+
+    override fun toString() = values.toString()
 }
 
 /**
@@ -553,11 +658,17 @@ data class SqlTuple(private val values: List<SqlValue>) : SqlValue, List<SqlValu
 data class SqlMap(private val map: Map<SqlScalar, SqlValue>) : SqlValue, Map<SqlScalar, SqlValue> by map {
     constructor(vararg values: Pair<SqlScalar, SqlValue>) : this(values.toMap())
 
+    companion object {
+        val EMPTY = SqlMap()
+    }
+
     override fun get(key: SqlScalar) = map[key] ?: SqlNull
     override fun instanceOf(type: SqlType): Boolean =
         (type is SqlMapType && map.keys.all { it.instanceOf(type.keyType) }
                 && map.values.all { it.instanceOf(type.valueType) })
                 || (type is SqlUnionType && type.types.any { instanceOf(it) })
+
+    override fun toString() = values.toString()
 }
 
 /**
@@ -569,8 +680,14 @@ data class SqlMap(private val map: Map<SqlScalar, SqlValue>) : SqlValue, Map<Sql
 data class SqlStruct(private val fields: Map<String, SqlValue>) : SqlValue, Map<String, SqlValue> by fields {
     constructor(vararg values: Pair<String, SqlValue>) : this(values.toMap())
 
+    companion object {
+        val EMPTY = SqlStruct()
+    }
+
     override fun get(key: String) = fields[key] ?: SqlNull
     override fun instanceOf(type: SqlType): Boolean =
         (type is SqlStructType && type.fields.all { (name, type) -> this[name].instanceOf(type) })
                 || (type is SqlUnionType && type.types.any { instanceOf(it) })
+
+    override fun toString() = values.toString()
 }
