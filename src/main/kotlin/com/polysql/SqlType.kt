@@ -14,7 +14,9 @@ import java.util.*
  */
 sealed class SqlType {
     abstract val name: String
-    abstract val default: SqlValue
+    abstract val default: SqlValue?
+    abstract fun isSubtypeOf(type: SqlType): Boolean
+    fun isSupertypeOf(type: SqlType) = type.isSubtypeOf(this)
     infix fun or(other: SqlType): SqlUnionType = SqlUnionType(this, other)
     override fun toString() = name
 }
@@ -25,9 +27,7 @@ sealed class SqlType {
  * @author Ian Caffey
  * @since 1.0
  */
-sealed class SqlScalarType(override val name: String) : SqlType() {
-    infix fun to(type: SqlType) = SqlMapType(this, type)
-}
+sealed class SqlScalarType(override val name: String) : SqlType()
 
 /**
  * A [SqlType] which represent numerical data.
@@ -50,15 +50,20 @@ sealed class SqlRecursiveType : SqlType() {
      * @return `true` if the enclosing type contains a cyclic reference to `this`, otherwise `false`
      */
     @Suppress("SENSELESS_COMPARISON")
-    protected fun cyclesIn(enclosingType: SqlType): Boolean = when (enclosingType) {
-        this -> true
-        is SqlTupleType -> enclosingType.elements.any { cyclesIn(it) }
-        //Note: nested references to the enclosing types will not have their fields initialized yet, so these null
-        //checks are mandatory to ignore these cases (as they will be caught when checking for cycles from the parent)
-        is SqlStructType -> enclosingType.fields != null && enclosingType.fields.values.any { cyclesIn(it) }
-        is SqlUnionType -> enclosingType.types != null && enclosingType.types.all { cyclesIn(it) }
-        else -> false
-    }
+    protected fun cyclesIn(enclosingType: SqlType, visited: MutableSet<SqlType> = mutableSetOf()): Boolean =
+        if (visited.contains(enclosingType)) false else visited.add(enclosingType).let {
+            when (enclosingType) {
+                this -> true
+                is SqlTupleType -> enclosingType.elements.any { cyclesIn(it, visited) }
+                //Note: nested references to the enclosing types will not have their fields initialized yet, so these null
+                //checks are mandatory to ignore these cases (as they will be caught when checking for cycles from the parent)
+                is SqlStructType -> enclosingType.fields != null && enclosingType.fields.values.any {
+                    cyclesIn(it, visited)
+                }
+                is SqlUnionType -> enclosingType.types != null && enclosingType.types.all { cyclesIn(it, visited) }
+                else -> false
+            }
+        }
 
     /**
      * Determines if the [enclosingType] contains a reference to `this`.
@@ -66,17 +71,32 @@ sealed class SqlRecursiveType : SqlType() {
      * @return `true` if the enclosing type contains a reference to `this`, otherwise `false`
      */
     @Suppress("SENSELESS_COMPARISON")
-    protected fun referencedIn(enclosingType: SqlType): Boolean = when (enclosingType) {
-        this -> true
-        is SqlArrayType<*> -> referencedIn(enclosingType.elementType)
-        is SqlTupleType -> enclosingType.elements.any { referencedIn(it) }
-        is SqlMapType -> referencedIn(enclosingType.keyType) || referencedIn(enclosingType.valueType)
-        //Note: nested references to the enclosing types will not have their fields initialized yet, so these null
-        //checks are mandatory to ignore these cases (as they will be caught when checking for cycles from the parent)
-        is SqlStructType -> enclosingType.fields != null && enclosingType.fields.values.any { referencedIn(it) }
-        is SqlUnionType -> enclosingType.types != null && enclosingType.types.any { referencedIn(it) }
-        else -> false
-    }
+    protected fun referencedIn(enclosingType: SqlType, visited: MutableSet<SqlType> = mutableSetOf()): Boolean =
+        if (visited.contains(enclosingType)) false else visited.add(enclosingType).let {
+            when (enclosingType) {
+                this -> true
+                is SqlArrayType<*> -> referencedIn(enclosingType.elementType, visited)
+                is SqlTupleType -> enclosingType.elements.any { referencedIn(it, visited) }
+                is SqlMapType -> referencedIn(enclosingType.keyType, visited) || referencedIn(
+                    enclosingType.valueType,
+                    visited
+                )
+                //Note: nested references to the enclosing types will not have their fields initialized yet, so these null
+                //checks are mandatory to ignore these cases (as they will be caught when checking for cycles from the parent)
+                is SqlStructType -> enclosingType.fields != null && enclosingType.fields.values.any {
+                    referencedIn(it, visited)
+                }
+                is SqlUnionType -> enclosingType.types != null && enclosingType.types.any { referencedIn(it, visited) }
+                else -> false
+            }
+        }
+}
+
+object SqlAnyType : SqlType() {
+    override val name = "Any"
+    override val default: SqlValue? = null
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
 }
 
 /**
@@ -87,6 +107,8 @@ sealed class SqlRecursiveType : SqlType() {
  */
 object SqlNullType : SqlScalarType("Null") {
     override val default = SqlNull
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
 }
 
 /**
@@ -97,6 +119,8 @@ object SqlNullType : SqlScalarType("Null") {
  */
 object SqlBooleanType : SqlScalarType("Boolean") {
     override val default = SqlBoolean.FALSE
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || type is SqlAnyType || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
 }
 
 /**
@@ -107,6 +131,8 @@ object SqlBooleanType : SqlScalarType("Boolean") {
  */
 object SqlTinyIntType : SqlNumberType("TinyInt") {
     override val default = SqlTinyInt.ZERO
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || type is SqlAnyType || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
 }
 
 /**
@@ -117,6 +143,8 @@ object SqlTinyIntType : SqlNumberType("TinyInt") {
  */
 object SqlSmallIntType : SqlNumberType("SmallInt") {
     override val default = SqlSmallInt.ZERO
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || type is SqlAnyType || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
 }
 
 /**
@@ -127,6 +155,8 @@ object SqlSmallIntType : SqlNumberType("SmallInt") {
  */
 object SqlIntType : SqlNumberType("Int") {
     override val default = SqlInt.ZERO
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || type is SqlAnyType || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
 }
 
 /**
@@ -137,6 +167,8 @@ object SqlIntType : SqlNumberType("Int") {
  */
 object SqlBigIntType : SqlNumberType("BigInt") {
     override val default = SqlBigInt.ZERO
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || type is SqlAnyType || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
 }
 
 /**
@@ -147,6 +179,8 @@ object SqlBigIntType : SqlNumberType("BigInt") {
  */
 object SqlFloatType : SqlNumberType("Float") {
     override val default = SqlFloat.ZERO
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || type is SqlAnyType || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
 }
 
 /**
@@ -157,6 +191,8 @@ object SqlFloatType : SqlNumberType("Float") {
  */
 object SqlDoubleType : SqlNumberType("Double") {
     override val default = SqlDouble.ZERO
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || type is SqlAnyType || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
 }
 
 /**
@@ -167,7 +203,7 @@ object SqlDoubleType : SqlNumberType("Double") {
  * @author Ian Caffey
  * @since 1.0
  */
-data class SqlDecimalType(val precision: Int, val scale: Int) : SqlNumberType("Decimal($precision, $scale)") {
+data class SqlDecimalType(val precision: Int, val scale: Int) : SqlNumberType("Decimal($precision,$scale)") {
     init {
         require(precision <= 38) {
             "'$name' only supports precision up to 38 digits. [precision=$precision]"
@@ -176,6 +212,9 @@ data class SqlDecimalType(val precision: Int, val scale: Int) : SqlNumberType("D
 
     val mathContext = MathContext(precision, RoundingMode.HALF_UP)
     override val default = SqlDecimal.ZERO
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || type is SqlAnyType || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
+
     override fun toString() = name
 }
 
@@ -187,6 +226,8 @@ data class SqlDecimalType(val precision: Int, val scale: Int) : SqlNumberType("D
  */
 object SqlDateType : SqlScalarType("Date") {
     override val default = SqlDate.EPOCH
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || type is SqlAnyType || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
 }
 
 /**
@@ -197,6 +238,8 @@ object SqlDateType : SqlScalarType("Date") {
  */
 object SqlTimestampType : SqlScalarType("Timestamp") {
     override val default = SqlTimestamp.EPOCH
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || type is SqlAnyType || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
 }
 
 /**
@@ -211,6 +254,9 @@ data class SqlCharType(val length: Int) : SqlScalarType("Char($length)") {
     }
 
     override val default = SqlChar.EMPTY
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || type is SqlAnyType || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
+
     override fun toString() = super.toString()
 }
 
@@ -226,6 +272,9 @@ data class SqlVarcharType(val length: Int) : SqlScalarType("Varchar($length)") {
     }
 
     override val default = SqlVarchar.EMPTY
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || type is SqlAnyType || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
+
     override fun toString() = super.toString()
 }
 
@@ -237,6 +286,8 @@ data class SqlVarcharType(val length: Int) : SqlScalarType("Varchar($length)") {
  */
 object SqlStringType : SqlScalarType("String") {
     override val default = SqlString.EMPTY
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || type is SqlAnyType || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
 }
 
 /**
@@ -257,6 +308,9 @@ data class SqlArrayType<T : SqlType>(val elementType: T) : SqlType() {
         is SqlDoubleType -> SqlDoubleArray.EMPTY
         else -> SqlArray.EMPTY
     }
+
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || type is SqlAnyType || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
 
     override fun toString() = super.toString()
 }
@@ -280,6 +334,8 @@ data class SqlTupleType(val elements: List<SqlType>) : SqlType() {
 
     override val name = elements.joinToString(separator = ",", prefix = "(", postfix = ")") { it.name }
     override val default = SqlTuple.EMPTY
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || type is SqlAnyType || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
 
     override fun toString() = super.toString()
 }
@@ -293,6 +349,9 @@ data class SqlTupleType(val elements: List<SqlType>) : SqlType() {
 data class SqlMapType(val keyType: SqlScalarType, val valueType: SqlType) : SqlType() {
     override val name = "${keyType.name}=>${valueType.name}"
     override val default = SqlMap.EMPTY
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type) || type is SqlAnyType || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
+
     override fun toString() = super.toString()
 }
 
@@ -340,6 +399,14 @@ class SqlStructType private constructor(
     }
 
     override val default = SqlStruct.EMPTY
+    override fun isSubtypeOf(type: SqlType): Boolean =
+        equals(type)
+                || type is SqlAnyType
+                || (type is SqlUnionType && type.types.any { isSubtypeOf(it) })
+                || (type is SqlStructType && type.fields.all { (fieldName, fieldType) ->
+            this.fields[fieldName]?.isSubtypeOf(fieldType) == true
+        })
+
     override fun hashCode() = name.hashCode()
     override fun equals(other: Any?) =
         this === other || (other is SqlStructType && if (cyclic) name == other.name else fields == other.fields)
@@ -376,7 +443,9 @@ class SqlUnionType private constructor(
             this.types = types(this)
         } else {
             this.types = types(this)
-            this.name = this.types.joinToString("|") { it.name }
+            this.name = if (this.types.size == 2 && this.types.contains(SqlNullType))
+                "${this.types.first { it !is SqlNullType }}?" //T or SqlNullType will be rendered as T?
+            else this.types.joinToString("|") { it.name }
         }
         this.cyclic = this.types.any { referencedIn(it) }
         if (name == null && cyclic) {
@@ -391,7 +460,8 @@ class SqlUnionType private constructor(
         }
     }
 
-    override val default = if (SqlNull.instanceOf(this)) SqlNull else this.types.first().default
+    override val default = SqlNull.takeIf { SqlNull.instanceOf(this) }
+    override fun isSubtypeOf(type: SqlType): Boolean = equals(type) || types.all { it.isSubtypeOf(type) }
     override fun hashCode() = name.hashCode()
     override fun equals(other: Any?) =
         this === other || (other is SqlUnionType && if (cyclic) name == other.name else types == other.types)
